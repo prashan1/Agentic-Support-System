@@ -21,7 +21,7 @@ def main():
     # Create the LLM
     print("\n1. Creating LLM...")
     llm = get_llm(temperature=0)
-    print(f"   ✓ Created {llm.model_name} at {llm.base_url}")
+    print(f"   ✓ Created {llm.model_name}")
 
     # Send a simple message
     print("\n2. Sending message to LLM...")

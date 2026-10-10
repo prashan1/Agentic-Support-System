@@ -8,7 +8,7 @@ Makes it easy to swap providers without changing agent code.
 import os
 from typing import Optional
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 
 # Load environment variables once at module import time
 load_dotenv()
@@ -27,14 +27,14 @@ def _validate_required_env(var_name: str) -> str:
         )
     return value
 
-
+    
 def get_llm(
     temperature: float = 0,
     timeout: int = 30,
     max_retries: int = 2,
-) -> ChatOpenAI:
+) -> ChatGroq:
     """
-    Create and return a ChatOpenAI instance configured for Groq.
+    Create and return a ChatGroq instance.
 
     Args:
         temperature: Lower = more deterministic (0 is default for routing/classification).
@@ -42,18 +42,16 @@ def get_llm(
         max_retries: Number of retries for transient errors (rate limits, timeouts).
 
     Returns:
-        ChatOpenAI model configured for Groq (via OpenAI-compatible API).
+        ChatGroq model configured with API key and model name from .env
 
     Raises:
         ValueError: If required environment variables are missing.
     """
     api_key = _validate_required_env("GROQ_API_KEY")
-    base_url = _validate_required_env("GROQ_BASE_URL")
     model_name = _validate_required_env("CHAT_MODEL")
 
-    return ChatOpenAI(
+    return ChatGroq(
         api_key=api_key,
-        base_url=base_url,
         model=model_name,
         temperature=temperature,
         timeout=timeout,
@@ -64,6 +62,6 @@ def get_llm(
 if __name__ == "__main__":
     # Quick test: print model info
     llm = get_llm()
-    print(f"✓ LLM created: {llm.model_name}")
-    print(f"  Base URL: {llm.base_url}")
+    print(f"[OK] LLM created: {llm.model_name}")
+    print(f"  API Key: {'*' * 20}...")
     print(f"  Temperature: {llm.temperature}")
