@@ -1,0 +1,7 @@
+langchain
+langchain-openai
+langgraph
+langsmith
+python-dotenv
+pydantic>=2.0
+pytest
