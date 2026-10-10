@@ -1,16 +1,38 @@
-from app.state import CustomerSupportState
+from app.state import CustomerSupportState, RouteDecision
 from app.llm import get_llm
 from langchain_core.messages import SystemMessage
+from app.prompts import (
+    GENERAL_SYSTEM_PROMPT,
+    SUPERVISOR_SYSTEM_PROMPT,
+    TECHNICAL_SYSTEM_PROMPT,
+    BILLING_SYSTEM_PROMPT,
+    ACCOUNT_SYSTEM_PROMPT,
+)
 
+def make_specialist_node(name: str, prompt: str):
+    system_message = SystemMessage(content=prompt)   # built once
 
-GENERAL_SYSTEM_PROMPT = """You are a friendly and helpful customer support agent for an online learning platform.
-Your job is to answer customer questions clearly, concisely, and professionally.
-If you don't know the answer, admit it and suggest they contact a human agent."""
+    def specialist_node(state: CustomerSupportState):
+        llm = get_llm()
+        response = llm.invoke([system_message] + state["messages"])
+        return {
+            "messages": [response],
+            "final_response": response.content,
+            "current_agent": name,
+        }
 
+    return specialist_node
 
-def general_node(state: CustomerSupportState):
-    llm = get_llm()
-    system_prompt = SystemMessage(content=GENERAL_SYSTEM_PROMPT)
-    messages = [system_prompt] + state['messages']
-    response = llm.invoke(messages)
-    return {'messages': [response], 'final_response': response.content}
+def supervisor_node(state: CustomerSupportState):
+    llm = get_llm().with_structured_output(RouteDecision)
+    decision = llm.invoke([SystemMessage(content=SUPERVISOR_SYSTEM_PROMPT)] + state["messages"])
+    return {
+        "route": decision.route,
+        "routing_confidence": decision.confidence,
+        "current_agent": "supervisor",
+    }
+
+general_node = make_specialist_node("general", GENERAL_SYSTEM_PROMPT)
+technical_node = make_specialist_node("technical", TECHNICAL_SYSTEM_PROMPT)
+billing_node = make_specialist_node("billing", BILLING_SYSTEM_PROMPT)
+account_node = make_specialist_node("account", ACCOUNT_SYSTEM_PROMPT)

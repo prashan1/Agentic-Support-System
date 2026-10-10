@@ -55,6 +55,7 @@ def get_llm(
         model=model_name,
         temperature=temperature,
         timeout=timeout,
+        max_tokens=250,
         max_retries=max_retries,
     )
 
