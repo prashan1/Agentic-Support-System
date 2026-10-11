@@ -32,6 +32,7 @@ def get_llm(
     temperature: float = 0,
     timeout: int = 30,
     max_retries: int = 2,
+    max_tokens: int | None = None,
 ) -> ChatGroq:
     """
     Create and return a ChatGroq instance.
@@ -50,13 +51,20 @@ def get_llm(
     api_key = _validate_required_env("GROQ_API_KEY")
     model_name = _validate_required_env("CHAT_MODEL")
 
+    extra = {}
+    if "gpt-oss" in model_name:
+        # Reasoning model: "low" effort stops it burning most of the output budget
+        # on hidden thinking, so short answers are not truncated.
+        extra["reasoning_effort"] = "low"
+
     return ChatGroq(
         api_key=api_key,
         model=model_name,
         temperature=temperature,
         timeout=timeout,
-        max_tokens=250,
+        max_tokens=max_tokens,  # safety cap only; brevity comes from the prompts
         max_retries=max_retries,
+        **extra,
     )
 
 
