@@ -13,6 +13,11 @@ from langchain_core.messages import HumanMessage
 from app.graph import graph
 from app.nodes import CONFIDENCE_THRESHOLD, should_escalate
 
+import uuid
+
+# Unique per execution: the SQLite checkpointer persists threads, so reusing ids leaks old history.
+RUN_TAG = uuid.uuid4().hex[:6]
+
 sys.stdout.reconfigure(encoding="utf-8")  # Windows console defaults to cp1252
 
 # (query, expected_route, expected_escalated). None = no single right answer, not scored.
@@ -37,7 +42,7 @@ esc_ok = esc_total = 0
 recorded = []  # (query, confidence, expected_escalated)
 
 for i, (query, exp_route, exp_esc) in enumerate(CASES):
-    config = {"configurable": {"thread_id": f"regression-{i}"}, "recursion_limit": 10}
+    config = {"configurable": {"thread_id": f"regression-{RUN_TAG}-{i}"}, "recursion_limit": 10}
     result = graph.invoke({"messages": [HumanMessage(content=query)]}, config=config)
 
     route = result["route"]

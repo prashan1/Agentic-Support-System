@@ -56,3 +56,5 @@ htmlcov/
 
 .checkpoints/
 *.db
+# Eval run outputs
+evals/results/
