@@ -1,6 +1,6 @@
 """Interactive chat on ONE thread, so follow-ups remember earlier turns (preview of M6).
 
-Run:  python chat_cli.py      (Ctrl+C or type 'quit' to exit)
+Run:  python -m scripts.chat_cli      (type 'quit' to exit)
 """
 
 import sys
@@ -12,7 +12,7 @@ from app.graph import graph
 sys.stdout.reconfigure(encoding="utf-8")
 
 # recursion_limit is a TOP-LEVEL config key (not inside "configurable").
-config = {"configurable": {"thread_id": "chat-cli-1"}, "recursion_limit": 10}
+config = {"configurable": {"thread_id": "chat-cli-2"}, "recursion_limit": 10}
 
 while True:
     query = input("User: ").strip()

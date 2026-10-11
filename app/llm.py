@@ -6,7 +6,8 @@ Makes it easy to swap providers without changing agent code.
 """
 
 import os
-from typing import Optional
+from functools import lru_cache
+
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 
@@ -27,7 +28,11 @@ def _validate_required_env(var_name: str) -> str:
         )
     return value
 
-    
+
+# Building ChatGroq costs ~1.7s (client/SSL setup, measured via LangSmith traces), while a
+# call takes ~0.5s. The model object is stateless, so build once per distinct settings
+# and reuse. Call get_llm.cache_clear() if you change .env at runtime (e.g. in tests).
+@lru_cache(maxsize=None)
 def get_llm(
     temperature: float = 0,
     timeout: int = 30,

@@ -13,6 +13,7 @@ from app.nodes import (
     technical_node,
 )
 from app.state import CustomerSupportState
+from app.checkpoints import sqlite_checkpointer
 
 
 def route_from_supervisor(state: CustomerSupportState) -> str:
@@ -74,5 +75,5 @@ workflow.add_conditional_edges(
 workflow.add_edge("payment_tool", "billing")
 workflow.add_edge("account_tool", "account")
 
-checkpointer = InMemorySaver()
+checkpointer = sqlite_checkpointer()
 graph = workflow.compile(checkpointer=checkpointer)

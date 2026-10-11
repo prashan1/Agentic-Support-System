@@ -1,4 +1,4 @@
-"""Regression test: run the full graph on labeled queries.
+"""Regression check (run: python -m scripts.check_graph): full graph on labeled queries.
 
 Reports routing accuracy and escalation accuracy separately, then sweeps the
 escalation threshold OFFLINE from the recorded confidences (no extra LLM calls).

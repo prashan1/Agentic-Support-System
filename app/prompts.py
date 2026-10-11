@@ -184,15 +184,19 @@ CONCISE_RULE = """
 
 Response style:
 - Reply in at most 3 short sentences (under 60 words).
-- Lead with the direct answer or the tool result, then at most one next step.
+- Lead with the direct answer, then at most one next step.
 - No headings, bullet lists, bold text, or restating the question.
-- If you used a tool, state its result plainly.
+"""
+
+# Only for agents that actually have tools bound. Mentioning tools to an agent
+# without tools makes the model emit a tool call the API then rejects (tool_use_failed).
+TOOL_RESULT_RULE = """- If you used a tool, state its result plainly.
 """
 
 GENERAL_SYSTEM_PROMPT += CONCISE_RULE
 TECHNICAL_SYSTEM_PROMPT += CONCISE_RULE
-BILLING_SYSTEM_PROMPT += CONCISE_RULE
-ACCOUNT_SYSTEM_PROMPT += CONCISE_RULE
+BILLING_SYSTEM_PROMPT += CONCISE_RULE + TOOL_RESULT_RULE
+ACCOUNT_SYSTEM_PROMPT += CONCISE_RULE + TOOL_RESULT_RULE
 
 node_prompt_map = {
    'general': GENERAL_SYSTEM_PROMPT,

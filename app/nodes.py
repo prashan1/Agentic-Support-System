@@ -1,7 +1,8 @@
 from typing import Callable, List
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.llm import get_llm
+from langchain_core.messages import filter_messages
 from app.tools import check_account_status, check_payment_status
 from app.prompts import (
     ACCOUNT_SYSTEM_PROMPT,
@@ -62,9 +63,27 @@ def escalation_node(state: CustomerSupportState):
     }
 
 
+ROUTER_CONTEXT_MESSAGES = 6
+
+
+def recent_context(messages, n: int = ROUTER_CONTEXT_MESSAGES):
+    """Last n plain conversation turns (human + AI text) for routing.
+
+    Tool plumbing is dropped on purpose: ToolMessages are removed, and so are AI
+    messages that only carry tool_calls (a tool_call without its ToolMessage is
+    rejected by the provider).
+    """
+    turns = [
+        m
+        for m in filter_messages(messages, include_types=[HumanMessage, AIMessage])
+        if not getattr(m, "tool_calls", None)
+    ]
+    return turns[-n:]
+
+
 def supervisor_node(state: CustomerSupportState):
     llm = get_llm().with_structured_output(RouteDecision)
-    decision = llm.invoke([SystemMessage(content=SUPERVISOR_SYSTEM_PROMPT)] + state["messages"])
+    decision = llm.invoke([SystemMessage(content=SUPERVISOR_SYSTEM_PROMPT)] + recent_context(state["messages"]))
     return {
         "route": decision.route,
         "routing_confidence": decision.confidence,

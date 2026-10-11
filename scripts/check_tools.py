@@ -1,4 +1,4 @@
-"""M5 checkpoint: (1) call tools directly, (2) watch the agent-tool loop's message types."""
+"""M5 checkpoint (run: python -m scripts.check_tools): (1) call tools directly, (2) watch the agent-tool loop's message types."""
 
 import sys
 
