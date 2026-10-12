@@ -8,6 +8,7 @@ from app.nodes import (
     billing_node,
     escalation_node,
     general_node,
+    retrieve_node,
     should_escalate,
     supervisor_node,
     technical_node,
@@ -32,6 +33,7 @@ workflow.add_node("general", general_node)
 workflow.add_node("technical", technical_node)
 workflow.add_node("billing", billing_node)
 workflow.add_node("account", account_node)
+workflow.add_node("retrieve", retrieve_node)
 
 # ToolNode reads tool_calls from the last AIMessage, runs the matching function,
 # and returns {"messages": [ToolMessage, ...]}. A bare function can't do that.
@@ -44,14 +46,20 @@ workflow.add_conditional_edges(
     route_from_supervisor,
     {
         "general": "general",
-        "technical": "technical",
-        "billing": "billing",
+        "technical": "retrieve",
+        "billing": "retrieve",
         "account": "account",
         "escalation": "escalation",
     },
 )
+
 for specialist in ("general", "technical", "escalation"):
     workflow.add_edge(specialist, END)
+
+workflow.add_conditional_edges("retrieve", lambda state: state["route"], {
+    "technical": "technical",
+    "billing": "billing",
+})
 
 workflow.add_conditional_edges(
     "billing",

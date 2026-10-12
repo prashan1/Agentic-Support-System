@@ -3,6 +3,8 @@
 A buggy grader gives confidently wrong scores, so these stay small and are tested on fake inputs.
 """
 
+import re
+
 from langchain_core.messages import AIMessage, HumanMessage
 
 
@@ -58,3 +60,36 @@ def precision_recall(pairs) -> tuple[float | None, float | None]:
     precision = tp / predicted_pos if predicted_pos else None
     recall = tp / actual_pos if actual_pos else None
     return precision, recall
+
+
+# ---- RAG graders -------------------------------------------------------------------------
+
+_CITATION = re.compile(r"\[(KB-[A-Z]+-\d+)\]")
+
+
+def retrieved_doc_ids(documents) -> list[str]:
+    """doc_ids of the retrieved Documents, in rank order."""
+    return [d.metadata["doc_id"] for d in documents or []]
+
+
+def score_retrieval(expected_docs, retrieved_ids) -> bool | None:
+    """Recall@k hit: any expected doc was retrieved. None = not scored (unanswerable row)."""
+    if not expected_docs:
+        return None
+    return bool(set(expected_docs) & set(retrieved_ids))
+
+
+def cited_ids(response: str) -> set[str]:
+    return set(_CITATION.findall(response or ""))
+
+
+def score_grounding(kb_answerable, response, retrieved_ids) -> bool | None:
+    """Answerable: reply cites a doc that was actually retrieved (no invented citations).
+    Unanswerable: reply cites nothing (it should say it does not have the information).
+    None = not scored (row has no kb_answerable label)."""
+    if kb_answerable is None:
+        return None
+    cited = cited_ids(response)
+    if kb_answerable:
+        return bool(cited) and cited <= set(retrieved_ids)
+    return not cited

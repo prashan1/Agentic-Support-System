@@ -20,3 +20,4 @@ while True:
         break
     result = graph.invoke({"messages": [HumanMessage(content=query)]}, config=config)
     print(f"[{result['current_agent']}] AI: {result['final_response']}\n")
+    print(result["retrieved_documents"])

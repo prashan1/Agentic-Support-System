@@ -337,6 +337,73 @@ EVALS_DATASET = [
         "known_gap": True,
         "gap_note": "needs caller authentication / per-user tool authorization (M9)",
     },
+
+    # ==========================================
+    # RAG (6 Cases)   technical/billing answered from the knowledge base
+    # expected_docs  = any of these doc_ids in the retrieved top 3 counts as a retrieval hit
+    # kb_answerable  = False: the KB has no answer, so the reply must NOT cite a KB entry
+    # ==========================================
+    {
+        "id": "rag-01",
+        "query": "My mobile app closes by itself when I tap Submit Quiz at the end of a test.",
+        "expected_route": "technical",
+        "expected_tool": None,
+        "expected_escalation": False,
+        "difficulty": "easy",
+        "expected_docs": ["KB-APP-01", "KB-ERR-05"],
+        "kb_answerable": True,
+    },
+    {
+        "id": "rag-02",
+        "query": "Can I still get a refund if I bought the course 10 days ago?",
+        "expected_route": "billing",
+        "expected_tool": None,
+        "expected_escalation": False,
+        "difficulty": "easy",
+        "expected_docs": ["KB-REF-01"],
+        "kb_answerable": True,
+    },
+    {
+        "id": "rag-03",
+        "query": "How do I cancel my subscription plan?",
+        "expected_route": "billing",
+        "expected_tool": None,
+        "expected_escalation": False,
+        "difficulty": "easy",
+        "expected_docs": ["KB-SUB-01"],
+        "kb_answerable": True,
+    },
+    {
+        "id": "rag-04",
+        "query": "Why won't casting my lessons to my TV with Chromecast work?",
+        "expected_route": "technical",
+        "expected_tool": None,
+        "expected_escalation": False,
+        "difficulty": "edge",
+        "expected_docs": None,
+        "kb_answerable": False,  # no casting info in the KB (a Linux/Wayland query was tried
+        # first, but the KB mentions Linux browsers, so that label was wrong)
+    },
+    {
+        "id": "rag-05",
+        "query": "Do you give student discounts on the subscription plans?",
+        "expected_route": "billing",
+        "expected_tool": None,
+        "expected_escalation": False,
+        "difficulty": "edge",
+        "expected_docs": None,
+        "kb_answerable": False,  # no discount policy in the KB
+    },
+    {
+        "id": "rag-06",
+        "query": "Can I pay for my subscription in EMI installments?",
+        "expected_route": "billing",
+        "expected_tool": None,
+        "expected_escalation": False,
+        "difficulty": "edge",
+        "expected_docs": None,
+        "kb_answerable": False,  # KB lists payment methods but says nothing about EMI
+    },
 ]
 
 
@@ -355,6 +422,10 @@ for _row in EVALS_DATASET:
     assert _row["expected_route"] in _ROUTES, f"{_row['id']}: bad expected_route"
     assert _row["expected_tool"] in _TOOLS, f"{_row['id']}: bad expected_tool"
     assert _row["difficulty"] in _DIFFICULTIES, f"{_row['id']}: bad difficulty"
+    if _row.get("kb_answerable") is True:
+        assert _row.get("expected_docs"), f"{_row['id']}: answerable rows need expected_docs"
+    if _row.get("kb_answerable") is False:
+        assert not _row.get("expected_docs"), f"{_row['id']}: unanswerable rows have no expected_docs"
     assert not (_row["expected_tool"] and _row["expected_escalation"]), (
         f"{_row['id']}: escalated runs never call tools; drop one of the two labels"
     )

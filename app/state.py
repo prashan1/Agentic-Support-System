@@ -1,10 +1,11 @@
 from typing import Annotated, Literal, TypedDict
 
+from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
-Route = Literal["general", "technical", "billing", "account"]
+Route = Literal["general", "technical", "billing", "account"]  # supervisor's choices only
 
 class RouteDecision(BaseModel):
     """Typed output of the supervisor. The field descriptions are sent to the model."""
@@ -20,6 +21,7 @@ class RouteDecision(BaseModel):
 class CustomerSupportState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]  # Conversation transcript
     route: Route  # Chosen specialist
+    retrieved_documents: list[Document]  # Retrieved documents
     escalated: bool  # Whether the query requires human intervention
     escalation_reason: str | None  # Why we escalated (None when not escalated)
     resolution_status: Literal["escalated", "resolved"]  # Resolution status

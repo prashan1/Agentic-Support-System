@@ -25,6 +25,8 @@ Available routes:
    - Charges
    - Refunds
    - Invoices
+   - Subscriptions, plans, renewals and cancellations
+   - Payment methods, pricing and discounts
    - Billing problems
 
 3. account
@@ -191,6 +193,17 @@ Response style:
 # Only for agents that actually have tools bound. Mentioning tools to an agent
 # without tools makes the model emit a tool call the API then rejects (tool_use_failed).
 TOOL_RESULT_RULE = """- If you used a tool, state its result plainly.
+"""
+
+# Injected as a second system message when the specialist has retrieved KB entries.
+# {entries} is filled by format_context() in app/nodes.py.
+CONTEXT_PROMPT_TEMPLATE = """Knowledge base entries retrieved for this request:
+
+{entries}
+
+Answer using only these entries. If none of them answers the question, say you
+do not have that information and that it should go to human support.
+Cite the entry you used like [KB-XXX-00].
 """
 
 GENERAL_SYSTEM_PROMPT += CONCISE_RULE

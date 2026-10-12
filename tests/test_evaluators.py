@@ -74,3 +74,26 @@ def test_precision_recall():
 def test_precision_recall_undefined_cases():
     assert precision_recall([(False, False)]) == (None, None)
     assert precision_recall([(True, False)]) == (None, 0.0)  # never escalated: precision undefined
+
+
+# ---- RAG graders ----
+from evals.evaluators import cited_ids, score_grounding, score_retrieval  # noqa: E402
+
+
+def test_retrieval_hit_and_miss():
+    assert score_retrieval(["KB-REF-01"], ["KB-PAY-02", "KB-REF-01"]) is True
+    assert score_retrieval(["KB-REF-01"], ["KB-PAY-02"]) is False
+    assert score_retrieval(None, ["KB-PAY-02"]) is None  # unanswerable row: not scored
+
+
+def test_grounding_answerable_needs_real_citation():
+    assert score_grounding(True, "Refunds are possible within 7 days [KB-REF-01].", ["KB-REF-01"]) is True
+    assert score_grounding(True, "Refunds are possible.", ["KB-REF-01"]) is False  # no citation
+    assert score_grounding(True, "See [KB-SUB-09].", ["KB-REF-01"]) is False  # invented citation
+
+
+def test_grounding_unanswerable_must_not_cite():
+    assert score_grounding(False, "I do not have that information.", ["KB-PAY-04"]) is True
+    assert score_grounding(False, "Yes we accept EMI [KB-PAY-04].", ["KB-PAY-04"]) is False
+    assert score_grounding(None, "anything", []) is None
+    assert cited_ids("a [KB-A-01] b [KB-B-02]") == {"KB-A-01", "KB-B-02"}
