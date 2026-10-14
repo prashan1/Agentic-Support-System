@@ -43,6 +43,12 @@ Available routes:
    - Requests that do not clearly belong to another
      specialist
    - Ambiguous customer requests
+   - Questions about what the assistant knows or remembers about
+     THIS customer (their name, plan, device, saved preferences,
+     "what do you know about me", "remind me which plan I am on").
+     These are answered from remembered facts, so they are NOT
+     vague: choose general with a HIGH confidence (0.9 or above),
+     even if the question mentions a plan or device.
    - A customer who reports that something is wrong or
      broken but does NOT name a specific feature, error
      message, screen, payment, or login problem. A vague
@@ -204,6 +210,30 @@ CONTEXT_PROMPT_TEMPLATE = """Knowledge base entries retrieved for this request:
 Answer using only these entries. If none of them answers the question, say you
 do not have that information and that it should go to human support.
 Cite the entry you used like [KB-XXX-00].
+"""
+MEMORY_PROMPT_TEMPLATE = """
+Below are long-term facts and preferences about this customer, remembered from past conversations.
+
+### Retrieved User Memories:
+{retrieved_memories}
+
+### Interaction Guidelines:
+1. **Personalization:** Use the provided memories to tailor your advice, tone, and answers automatically. If the user's name is known, address them naturally.
+2. **Preference Alignment:** If a memory states a technical preference (e.g., "Prefers Python over JS"), default to writing examples or answers using that preference without asking them to clarify.
+3. **Seamless Blend:** Act as though you naturally remember this information. Do not explicitly say phrases like "According to your database..." or "My long-term memory states...". Just execute the request with their context in mind.
+4. **Conflict Resolution:** If the user directly contradicts a retrieved memory in their latest message, prioritize their *current* message over the old memory (people can change their minds).
+
+"""
+
+# Memory extraction runs as its own node after the reply (app/nodes.py: remember_node).
+# It sees only the customer's message, with no tools and no conversation history.
+MEMORY_EXTRACTOR_PROMPT = """
+You extract durable facts about a customer from ONE message they wrote.
+
+Extract only lasting facts or preferences the customer states about themselves
+(plan, device, language, preferred answer style). Ignore questions, one-off issues,
+requests, transaction or account IDs, passwords and card numbers.
+Return an empty list when there is nothing durable.
 """
 
 GENERAL_SYSTEM_PROMPT += CONCISE_RULE

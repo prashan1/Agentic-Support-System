@@ -12,7 +12,8 @@ from app.graph import graph
 sys.stdout.reconfigure(encoding="utf-8")
 
 # recursion_limit is a TOP-LEVEL config key (not inside "configurable").
-config = {"configurable": {"thread_id": "chat-cli-2"}, "recursion_limit": 10}
+USER_ID = sys.argv[1] if len(sys.argv) > 1 else "demo-user"  # long-term memory key
+config = {"configurable": {"thread_id": "chat-cli-2", "user_id": USER_ID}, "recursion_limit": 10}
 
 while True:
     query = input("User: ").strip()
@@ -20,4 +21,4 @@ while True:
         break
     result = graph.invoke({"messages": [HumanMessage(content=query)]}, config=config)
     print(f"[{result['current_agent']}] AI: {result['final_response']}\n")
-    print(result["retrieved_documents"])
+    print("memory:", result.get("retrieved_memory"))

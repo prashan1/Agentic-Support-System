@@ -5,6 +5,9 @@ The docstring is effectively a prompt: the model reads it to decide when to use 
 
 SECURITY NOTE (revisit in M9): the arguments come from the model, so they are untrusted.
 Real tools must authorize the caller using trusted session data, not model-supplied IDs.
+
+Memory is NOT a tool any more: facts are extracted after each reply by the remember node
+(see app/nodes.py), so saving never depends on the model choosing to call a tool.
 """
 
 from langchain_core.tools import tool
@@ -48,3 +51,13 @@ def check_account_status(account_id: str) -> str:
     """
     key = _normalize(account_id)
     return _ACCOUNTS.get(key, f"No record found for account ID '{account_id}'.")
+
+
+# Single source of truth: the real tools each specialist is bound to AND its ToolNode can run.
+# General and technical have no tools, so they never see tool instructions (avoids tool_use_failed).
+SPECIALIST_TOOLS = {
+    "general": [],
+    "technical": [],
+    "billing": [check_payment_status],
+    "account": [check_account_status],
+}
