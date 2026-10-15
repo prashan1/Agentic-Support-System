@@ -3,6 +3,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from app.tools import SPECIALIST_TOOLS
+from app.approval import approval_node, route_billing
 from app.nodes import (
     account_node,
     billing_node,
@@ -70,7 +71,17 @@ workflow.add_edge("remember", END)
 for name, tools in SPECIALIST_TOOLS.items():
     if tools:
         workflow.add_node(f"{name}_tools", ToolNode(tools))
-        workflow.add_conditional_edges(name, tools_condition, {"tools": f"{name}_tools", END: "remember"})
+        if name == "billing":
+            # Billing has a sensitive tool (issue_refund): route through the human approval gate.
+            # approval routes onward itself with Command(goto=...), so it needs no outgoing edges.
+            workflow.add_node("approval", approval_node)
+            workflow.add_conditional_edges(
+                name,
+                route_billing,
+                {"approval": "approval", "billing_tools": "billing_tools", "remember": "remember"},
+            )
+        else:
+            workflow.add_conditional_edges(name, tools_condition, {"tools": f"{name}_tools", END: "remember"})
         workflow.add_edge(f"{name}_tools", name)
     else:
         workflow.add_edge(name, "remember")
