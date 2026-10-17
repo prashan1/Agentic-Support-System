@@ -1,15 +1,36 @@
-"""Tests for the HITL gate: pure router + a tiny graph with a real interrupt/resume. No LLM."""
+﻿"""Tests for the HITL gate: pure router + a tiny graph with a real interrupt/resume. No LLM, no MCP.
+
+The graph runs STUB billing tools defined here. The real ones live on the MCP server; the gate
+only cares about tool names (SENSITIVE_TOOLS), so stubs are enough to test pause/approve/reject/edit.
+"""
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 
-from app import tools
 from app.approval import approval_node, route_billing
-from app.tools import check_payment_status, issue_refund
+
+REFUNDED: set[str] = set()  # the stub's "side effect": what a real refund would have changed
+
+
+@tool
+def check_payment_status(transaction_id: str) -> str:
+    """Stub: look up a payment."""
+    return f"Payment status: completed for {transaction_id}."
+
+
+@tool
+def issue_refund(transaction_id: str, amount: float | None = None) -> str:
+    """Stub: queue a refund. Refuses amounts above 499 like the real service."""
+    if amount is not None and not 0 < amount <= 499:
+        return f"Cannot refund {amount}: more than was paid."
+    REFUNDED.add(transaction_id)
+    return f"Refund of {499.0 if amount is None else amount} queued for {transaction_id}."
+
 
 REFUND = {"name": "issue_refund", "args": {"transaction_id": "TXN002"}, "id": "c1"}
 CHECK = {"name": "check_payment_status", "args": {"transaction_id": "TXN002"}, "id": "c2"}
@@ -17,9 +38,9 @@ CHECK = {"name": "check_payment_status", "args": {"transaction_id": "TXN002"}, "
 
 @pytest.fixture(autouse=True)
 def clean_refunds():
-    tools._REFUNDS.clear()
+    REFUNDED.clear()
     yield
-    tools._REFUNDS.clear()
+    REFUNDED.clear()
 
 
 # ---- Step 2: router ----
@@ -69,14 +90,14 @@ def test_pause_happens_before_any_side_effect():
     _, first = start(app)
     assert "__interrupt__" in first
     assert first["__interrupt__"][0].value["calls"][0]["name"] == "issue_refund"
-    assert tools._REFUNDS == set()  # nothing refunded while waiting
+    assert REFUNDED == set()  # nothing refunded while waiting
 
 
 def test_approve_runs_the_refund():
     app = build_app()
     config, _ = start(app)
     result = resume(app, config, decision="approve")
-    assert "TXN002" in tools._REFUNDS
+    assert "TXN002" in REFUNDED
     assert any(isinstance(m, ToolMessage) and "queued" in m.content for m in result["messages"])
     assert result["messages"][-1].content == "final reply"
 
@@ -85,7 +106,7 @@ def test_reject_never_runs_the_refund_and_answers_every_call():
     app = build_app()
     config, _ = start(app, calls=(CHECK, REFUND))
     result = resume(app, config, decision="reject", reason="outside window")
-    assert tools._REFUNDS == set()
+    assert REFUNDED == set()
     tool_msgs = [m for m in result["messages"] if isinstance(m, ToolMessage)]
     assert {m.tool_call_id for m in tool_msgs} == {"c1", "c2"}  # one ToolMessage per tool call
     assert all("Rejected" in m.content for m in tool_msgs)
@@ -106,7 +127,7 @@ def test_edit_cannot_bypass_tool_validation():
     app = build_app()
     config, _ = start(app)
     result = resume(app, config, decision="edit", args={"amount": 100000})
-    assert tools._REFUNDS == set()  # the tool still refuses an amount above what was paid
+    assert REFUNDED == set()  # the tool still refuses an amount above what was paid
     assert any(isinstance(m, ToolMessage) and "Cannot refund" in m.content for m in result["messages"])
 
 
@@ -115,4 +136,4 @@ def test_unknown_decision_does_not_default_to_approve():
     config, _ = start(app)
     with pytest.raises(ValueError):
         resume(app, config, decision="maybe")
-    assert tools._REFUNDS == set()
+    assert REFUNDED == set()

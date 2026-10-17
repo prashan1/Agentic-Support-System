@@ -17,8 +17,13 @@ from langgraph.types import Command
 
 from app.graph import graph, store
 from app.store import forget_user, memory_namespace
+from app.tools import SPECIALIST_TOOLS
 
 st.set_page_config(page_title="Support agent lab")
+
+# Only these nodes write the customer-facing reply; the supervisor (structured output) and the
+# memory extractor also call the LLM, but their tokens must not appear in the chat.
+REPLY_NODES = {"general", "technical", "billing", "account"}
 
 
 def config_for(user_id: str, thread_id: str) -> dict:
@@ -38,12 +43,39 @@ def new_thread() -> None:
 if "thread_id" not in st.session_state:
     new_thread()
 
+
+def run_turn(graph_input) -> None:
+    """Run the graph until it finishes or pauses, streaming the reply tokens into the chat."""
+
+    def reply_tokens():
+        for chunk, meta in graph.stream(graph_input, config=config, stream_mode="messages"):
+            if meta.get("langgraph_node") in REPLY_NODES and isinstance(chunk.content, str) and chunk.content:
+                yield chunk.content
+
+    with st.chat_message("assistant"):
+        st.write_stream(reply_tokens())
+
+    # Read the final state from the checkpoint (same data invoke() used to return).
+    state = graph.get_state(config)
+    last = dict(state.values)
+    if any(task.interrupts for task in state.tasks):
+        last["__interrupt__"] = True
+    st.session_state.last = last
+    st.rerun()
+
 # ---------- sidebar: who, which conversation, what is remembered ----------
 with st.sidebar:
     st.header("Session")
     user_id = st.text_input("user_id (memory key)", value="demo-user")
     st.button("New conversation", on_click=new_thread)
     st.caption(f"thread_id: `{st.session_state.thread_id}`")
+
+    st.subheader("Billing tools (from MCP server)")
+    billing_tool_names = [t.name for t in SPECIALIST_TOOLS["billing"]]
+    if billing_tool_names:
+        st.success(", ".join(billing_tool_names))
+    else:
+        st.error("None discovered: billing runs in degraded mode. Start the server, set BILLING_MCP_URL, restart the app.")
 
     st.subheader("Long-term memory")
     facts = [i.value["fact"] for i in store.search(memory_namespace(user_id), limit=50)]
@@ -72,8 +104,7 @@ for message in graph.get_state(config).values.get("messages", []):
 
 # ---------- human review panel (only when the graph is paused) ----------
 def send_decision(answer: dict) -> None:
-    st.session_state.last = graph.invoke(Command(resume=answer), config=config)
-    st.rerun()
+    run_turn(Command(resume=answer))
 
 
 reviews = pending_reviews(config)
@@ -93,8 +124,8 @@ if reviews:
 else:
     prompt = st.chat_input("Ask the support agent")
     if prompt:
-        st.session_state.last = graph.invoke({"messages": [HumanMessage(content=prompt)]}, config=config)
-        st.rerun()
+        st.chat_message("user").write(prompt)
+        run_turn({"messages": [HumanMessage(content=prompt)]})
 
 
 # ---------- debug panel: what happened on the last turn ----------

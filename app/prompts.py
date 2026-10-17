@@ -98,7 +98,7 @@ issue should be escalated to human support.
 
 # BILLING AGENT SYSTEM PROMPT
 
-BILLING_SYSTEM_PROMPT = """
+_BILLING_HEAD = """
 You are the Billing Support Agent.
 
 Help customers with billing and payment-related issues.
@@ -114,7 +114,10 @@ Examples include:
 
 Provide clear and helpful guidance.
 
-Tool rule:
+"""
+
+# Used only when the billing MCP server's tools were discovered at startup.
+_BILLING_TOOL_RULES = """Tool rule:
 If the customer gives a transaction ID, call check_payment_status
 before answering and base your answer on its result. If they report
 a payment problem but give no transaction ID, ask for it. Never guess
@@ -126,7 +129,19 @@ transaction ID. If they ask for a refund without an ID, ask for it. Say a
 refund is queued only after the tool result says so, and never state an
 amount that the customer or the tool did not give.
 
-Scope rule:
+"""
+
+# Used instead when the MCP server was unreachable: the agent has NO tools, so it must not
+# mention or pretend to use them (a tool-less model asked to call tools fails or makes things up).
+BILLING_UNAVAILABLE_RULE = """Unavailable rule:
+Payment lookup and refund actions are temporarily unavailable. Do not claim
+to have checked a payment or issued, queued or approved a refund. Apologise
+briefly, say you cannot check payments or process refunds right now, and
+suggest the customer try again later or contact human support.
+
+"""
+
+_BILLING_TAIL = """Scope rule:
 If the request is NOT about billing or payments (for example a
 technical or login problem), do not attempt to answer it. Reply
 in one or two sentences saying it belongs to the Technical or
@@ -139,6 +154,9 @@ passwords. If you do not have enough information, say so and
 clearly indicate that the issue should be escalated to human
 support.
 """
+
+BILLING_SYSTEM_PROMPT = _BILLING_HEAD + _BILLING_TOOL_RULES + _BILLING_TAIL
+BILLING_NO_TOOLS_PROMPT = _BILLING_HEAD + BILLING_UNAVAILABLE_RULE + _BILLING_TAIL
 
 # ACCOUNT SUPPORT AGENT SYSTEM PROMPT
 ACCOUNT_SYSTEM_PROMPT = """
@@ -245,6 +263,7 @@ Return an empty list when there is nothing durable.
 GENERAL_SYSTEM_PROMPT += CONCISE_RULE
 TECHNICAL_SYSTEM_PROMPT += CONCISE_RULE
 BILLING_SYSTEM_PROMPT += CONCISE_RULE + TOOL_RESULT_RULE
+BILLING_NO_TOOLS_PROMPT += CONCISE_RULE
 ACCOUNT_SYSTEM_PROMPT += CONCISE_RULE + TOOL_RESULT_RULE
 
 node_prompt_map = {

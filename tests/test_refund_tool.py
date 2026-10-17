@@ -1,66 +1,64 @@
-"""Spec for M11 Step 1: the refund tool (the side-effect action that needs human approval).
+"""Tests for the billing service logic (server side) and the tool policy (agent side).
 
-Implement in app/tools.py so these pass:   python -m pytest tests/test_refund_tool.py -q
-Pure python: no LLM, no network.
+Pure python: no LLM, no network, no MCP.   python -m pytest tests/test_refund_tool.py -q
 """
 
 import pytest
 
-from app import tools
-from app.tools import SENSITIVE_TOOLS, SPECIALIST_TOOLS, issue_refund
+from app.tools import SENSITIVE_TOOLS, SPECIALIST_TOOLS
+from servers import billing_logic
 
 
 @pytest.fixture(autouse=True)
 def clean_refunds():
-    """Your fixture state must be a module-level set named _REFUNDS (ids already refunded)."""
-    tools._REFUNDS.clear()
+    billing_logic._REFUNDS.clear()
     yield
-    tools._REFUNDS.clear()
+    billing_logic._REFUNDS.clear()
 
 
-def call(**args) -> str:
-    return issue_refund.invoke(args)
+def refund(transaction_id, amount=None) -> str:
+    return billing_logic.issue_refund(transaction_id, amount)
 
 
+# ---- refund rules ----
 def test_full_refund_for_completed_payment():
-    result = call(transaction_id="TXN002").lower()
+    result = refund("TXN002").lower()
     assert "queued" in result and "txn002" in result
-    assert "TXN002" in tools._REFUNDS
+    assert "TXN002" in billing_logic._REFUNDS
 
 
 def test_partial_refund_amount_is_echoed():
-    assert "100" in call(transaction_id="TXN001", amount=100)
+    assert "100" in refund("TXN001", 100)
 
 
 def test_id_is_normalized():
-    assert "queued" in call(transaction_id="  txn001 ").lower()
-    assert "TXN001" in tools._REFUNDS
+    assert "queued" in refund("  txn001 ").lower()
+    assert "TXN001" in billing_logic._REFUNDS
 
 
 def test_second_refund_is_idempotent():
-    call(transaction_id="TXN002")
-    assert "already" in call(transaction_id="TXN002").lower()
+    refund("TXN002")
+    assert "already" in refund("TXN002").lower()
 
 
 def test_unknown_transaction():
-    assert "No record found" in call(transaction_id="TXN999")
-    assert "TXN999" not in tools._REFUNDS
+    assert "No record found" in refund("TXN999")
+    assert "TXN999" not in billing_logic._REFUNDS
 
 
 @pytest.mark.parametrize("txn", ["TXN003", "TXN004"])  # pending / failed payments
 def test_only_completed_payments_are_refundable(txn):
-    result = call(transaction_id=txn).lower()
-    assert "queued" not in result
-    assert txn not in tools._REFUNDS
+    assert "queued" not in refund(txn).lower()
+    assert txn not in billing_logic._REFUNDS
 
 
 @pytest.mark.parametrize("amount", [0, -5, 100000])  # zero, negative, more than was paid
 def test_invalid_amounts_are_refused(amount):
-    result = call(transaction_id="TXN002", amount=amount).lower()
-    assert "queued" not in result
-    assert "TXN002" not in tools._REFUNDS
+    assert "queued" not in refund("TXN002", amount).lower()
+    assert "TXN002" not in billing_logic._REFUNDS
 
 
+# ---- agent-side policy ----
 def test_sensitive_tools_policy():
     assert SENSITIVE_TOOLS == {"issue_refund"}  # names (strings), read-only tools are NOT gated
 

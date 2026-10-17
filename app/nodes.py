@@ -9,6 +9,7 @@ from app.store import memory_namespace, save_fact
 from app.tools import SPECIALIST_TOOLS
 from app.prompts import (
     ACCOUNT_SYSTEM_PROMPT,
+    BILLING_NO_TOOLS_PROMPT,
     BILLING_SYSTEM_PROMPT,
     CONTEXT_PROMPT_TEMPLATE,
     MEMORY_EXTRACTOR_PROMPT,
@@ -158,7 +159,11 @@ general_node = make_specialist_node("general", GENERAL_SYSTEM_PROMPT, SPECIALIST
 technical_node = make_specialist_node(
     "technical", TECHNICAL_SYSTEM_PROMPT, SPECIALIST_TOOLS["technical"], use_context=True
 )
+# No MCP tools discovered => degraded prompt that never mentions tools (see prompts.py).
 billing_node = make_specialist_node(
-    "billing", BILLING_SYSTEM_PROMPT, SPECIALIST_TOOLS["billing"], use_context=True
+    "billing",
+    BILLING_SYSTEM_PROMPT if SPECIALIST_TOOLS["billing"] else BILLING_NO_TOOLS_PROMPT,
+    SPECIALIST_TOOLS["billing"],
+    use_context=True,
 )
 account_node = make_specialist_node("account", ACCOUNT_SYSTEM_PROMPT, SPECIALIST_TOOLS["account"])

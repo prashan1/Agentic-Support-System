@@ -4,11 +4,15 @@ route_billing  : pure router, replaces tools_condition for billing.
 approval_node  : pauses with interrupt(), then routes by the human's decision.
 
 Light imports on purpose (no LLM, no retriever), so both are easy to test.
+
+KNOWN GAP (M12): this gate protects OUR agent only. Once the tools live on an MCP server,
+anyone who can reach that server can call issue_refund without going through this gate.
+Server-side enforcement (signed approvals / auth) is deferred to M14.
 """
 
 from typing import Literal
 
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import ToolMessage
 from langgraph.types import Command, interrupt
 
 from app.tools import SENSITIVE_TOOLS
